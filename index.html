@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+<title>Atomia · Element Explorer</title>
+<meta name="description" content="Learn the periodic table with fun, colorful flashcards, a full element map, and quizzes." />
+<meta name="theme-color" content="#0F1729" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Atomia" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- ===== Top bar ===== -->
+  <header class="topbar">
+    <div class="brand">
+      <svg class="brand-atom" viewBox="0 0 40 40" aria-hidden="true">
+        <circle cx="20" cy="20" r="3.4" fill="currentColor"/>
+        <ellipse cx="20" cy="20" rx="17" ry="7" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <ellipse cx="20" cy="20" rx="17" ry="7" fill="none" stroke="currentColor" stroke-width="1.6" transform="rotate(60 20 20)"/>
+        <ellipse cx="20" cy="20" rx="17" ry="7" fill="none" stroke="currentColor" stroke-width="1.6" transform="rotate(120 20 20)"/>
+      </svg>
+      <span class="brand-name">Atomia</span>
+    </div>
+    <button id="streakBtn" class="streak-pill" title="Elements learned" aria-label="Elements learned">
+      <span id="streakCount">0</span><span class="streak-label">/118</span>
+    </button>
+  </header>
+
+  <!-- ===== TABLE VIEW ===== -->
+  <main id="view-table" class="view view-table">
+    <p class="view-intro">Tap any tile to open its flashcard. Colors show each element family.</p>
+    <div class="table-scroll">
+      <div class="periodic-grid" id="periodicGrid"></div>
+    </div>
+    <div class="legend" id="legend"></div>
+    <button class="guide-link" id="guideLinkTable">What do these families mean?</button>
+  </main>
+
+  <!-- ===== FLASHCARDS VIEW ===== -->
+  <main id="view-cards" class="view view-cards hidden">
+    <div class="filter-bar">
+      <div class="filter-row" id="categoryChips" role="tablist" aria-label="Filter by category"></div>
+      <button class="info-btn" id="guideLinkCards" aria-label="What do these families mean?">ⓘ</button>
+    </div>
+
+    <div class="card-stage">
+      <button class="nav-arrow nav-left" id="prevBtn" aria-label="Previous element">
+        <svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+
+      <div class="flip-card" id="flipCard" tabindex="0" role="button" aria-label="Flip card to see details">
+        <div class="flip-inner" id="flipInner">
+          <!-- FRONT -->
+          <div class="flip-face flip-front" id="cardFront">
+            <div class="orbit-bg" aria-hidden="true">
+              <div class="orbit o1"></div><div class="orbit o2"></div><div class="orbit o3"></div>
+            </div>
+            <span class="cat-badge" id="frontCat">Category</span>
+            <div class="big-number" id="frontNumber">1</div>
+            <div class="big-symbol" id="frontSymbol">H</div>
+            <div class="big-name" id="frontName">Hydrogen</div>
+            <div class="tap-hint">Tap to flip ✦</div>
+          </div>
+          <!-- BACK -->
+          <div class="flip-face flip-back" id="cardBack">
+            <div class="back-symbol" id="backSymbol">H</div>
+            <div class="back-name" id="backName">Hydrogen</div>
+            <dl class="fact-list">
+              <div class="fact-row"><dt>Atomic mass</dt><dd id="backMass">1.008</dd></div>
+              <div class="fact-row"><dt>Category</dt><dd id="backCat">Nonmetal</dd></div>
+              <div class="fact-row"><dt>State at room temp</dt><dd id="backPhase">Gas</dd></div>
+              <div class="fact-row"><dt>Discovered</dt><dd id="backDiscovered">1766</dd></div>
+            </dl>
+            <p class="fun-fact" id="backFact">Fun fact goes here.</p>
+            <p class="fun-use" id="backUse">Everyday use goes here.</p>
+          </div>
+        </div>
+      </div>
+
+      <button class="nav-arrow nav-right" id="nextBtn" aria-label="Next element">
+        <svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <div class="progress-track" aria-hidden="true"><div class="progress-fill" id="deckProgress"></div></div>
+    <p class="deck-position" id="deckPosition">Element 1 of 118</p>
+
+    <div class="card-actions">
+      <button class="pill-btn ghost" id="shuffleBtn">
+        <svg viewBox="0 0 24 24"><path d="M4 7h3.5c1.5 0 2.2.6 3 1.7l5 6.6c.8 1.1 1.5 1.7 3 1.7H21M4 17h3.5c1.5 0 2.2-.6 3-1.7l.4-.5M14.5 7c1.5 0 2.2.6 3 1.7l.1.1M21 7l-3-3M21 7l-3 3M21 17l-3 3M21 17l-3-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Shuffle
+      </button>
+      <button class="pill-btn learn" id="knowBtn">
+        <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        I know this!
+      </button>
+    </div>
+  </main>
+
+  <!-- ===== QUIZ VIEW ===== -->
+  <main id="view-quiz" class="view view-quiz hidden">
+    <div id="quizIntro" class="quiz-intro">
+      <h2>Test your brain!</h2>
+      <p>Pick a challenge. Each round has 10 questions.</p>
+      <div class="quiz-modes">
+        <button class="quiz-mode-card" data-mode="symbolToName">
+          <span class="qm-emoji">Na → ?</span>
+          <span class="qm-title">Symbol to Name</span>
+          <span class="qm-sub">See a symbol, pick the element</span>
+        </button>
+        <button class="quiz-mode-card" data-mode="nameToSymbol">
+          <span class="qm-emoji">? → Na</span>
+          <span class="qm-title">Name to Symbol</span>
+          <span class="qm-sub">See a name, pick the symbol</span>
+        </button>
+        <button class="quiz-mode-card" data-mode="numberToName">
+          <span class="qm-emoji">#11</span>
+          <span class="qm-title">Atomic Number</span>
+          <span class="qm-sub">Match the number to the element</span>
+        </button>
+        <button class="quiz-mode-card" data-mode="category">
+          <span class="qm-emoji">◆</span>
+          <span class="qm-title">Element Families</span>
+          <span class="qm-sub">Which family does it belong to?</span>
+        </button>
+        <button class="quiz-mode-card featured" data-mode="fillTable">
+          <span class="qm-emoji" style="font-size:1.6rem;">🧩</span>
+          <span style="text-align:left;">
+            <span class="qm-title" style="display:block;">Fill the Table</span>
+            <span class="qm-sub">Drag each tile into its correct spot on the periodic table</span>
+          </span>
+        </button>
+      </div>
+      <div class="best-scores" id="bestScores"></div>
+    </div>
+
+    <!-- Regular multiple-choice quiz -->
+    <div id="quizPlay" class="quiz-play hidden">
+      <div class="quiz-top">
+        <button class="exit-btn" id="quizExitBtn">✕ Exit</button>
+        <span class="quiz-mid-info" id="quizProgressText">Question 1 of 10</span>
+        <span id="quizScoreText">Score: 0</span>
+      </div>
+      <div class="quiz-track"><div class="quiz-fill" id="quizFill"></div></div>
+      <div class="quiz-question" id="quizQuestion">Question</div>
+      <div class="quiz-options" id="quizOptions"></div>
+    </div>
+
+    <div id="quizResult" class="quiz-result hidden">
+      <div class="result-emoji" id="resultEmoji">🎉</div>
+      <h2 id="resultHeadline">Great job!</h2>
+      <p id="resultDetail">You got 8 out of 10 correct.</p>
+      <div class="card-actions">
+        <button class="pill-btn ghost" id="quizAgainBtn">Play again</button>
+        <button class="pill-btn learn" id="quizDoneBtn">Back to challenges</button>
+      </div>
+    </div>
+
+    <!-- Fill the Table game -->
+    <div id="fillSetup" class="quiz-intro hidden">
+      <button class="back-link" id="fillBackBtn">← Back</button>
+      <h2>Fill the Table</h2>
+      <p>Drag each tile into its correct spot, then hit Submit to check your answers.</p>
+      <div class="fill-period-list" id="fillPeriodList"></div>
+    </div>
+
+    <div id="fillPlay" class="fill-play hidden">
+      <div class="quiz-top">
+        <button class="exit-btn" id="fillExitBtn">✕ Exit</button>
+        <span class="quiz-mid-info" id="fillStatusText">0 / 8 placed</span>
+        <button class="exit-btn" id="fillClearBtn">↺ Clear</button>
+      </div>
+      <p class="rotate-tip">Tip: turn your device sideways to see the whole table at once.</p>
+      <div class="table-scroll">
+        <div class="periodic-grid fill-grid" id="fillGrid"></div>
+      </div>
+      <div class="fill-tray" id="fillTray"></div>
+      <p class="fill-hint">Drag a tile onto a dashed slot. Drag a placed tile back to the tray to undo.</p>
+      <div class="fill-toolbar">
+        <button class="pill-btn learn" id="fillSubmitBtn">Submit answers</button>
+      </div>
+    </div>
+
+    <div id="fillResult" class="quiz-result hidden">
+      <div class="result-emoji" id="fillResultEmoji">🏆</div>
+      <h2 id="fillResultHeadline">Nice work!</h2>
+      <p id="fillResultDetail">Here is how you did.</p>
+      <div class="review-summary" id="fillReviewSummary"></div>
+      <div class="table-scroll">
+        <div class="periodic-grid fill-grid" id="fillReviewGrid"></div>
+      </div>
+      <div class="card-actions" style="margin-top:18px;">
+        <button class="pill-btn ghost" id="fillAgainBtn">Try again</button>
+        <button class="pill-btn learn" id="fillDoneBtn">Back to challenges</button>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ===== PROGRESS VIEW ===== -->
+  <main id="view-progress" class="view view-progress hidden">
+    <h2 class="progress-title">Your Journey</h2>
+    <div class="stat-cards">
+      <div class="stat-card">
+        <div class="stat-num" id="statLearned">0</div>
+        <div class="stat-label">Elements learned</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statQuizzes">0</div>
+        <div class="stat-label">Quizzes played</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statBest">0%</div>
+        <div class="stat-label">Best quiz score</div>
+      </div>
+    </div>
+    <h3 class="section-heading">Progress by family</h3>
+    <div class="category-bars" id="categoryBars"></div>
+    <button class="pill-btn ghost reset-btn" id="resetBtn">Reset all progress</button>
+  </main>
+
+  <!-- ===== ELEMENT DETAIL MODAL (used from table view) ===== -->
+  <div class="modal-overlay hidden" id="modalOverlay">
+    <div class="modal-card" id="modalCard" role="dialog" aria-modal="true">
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+      <div class="modal-inner" id="modalInner"></div>
+    </div>
+  </div>
+
+  <!-- ===== FAMILY GUIDE MODAL ===== -->
+  <div class="modal-overlay hidden" id="guideOverlay">
+    <div class="modal-card" id="guideCard" role="dialog" aria-modal="true">
+      <button class="modal-close" id="guideClose" aria-label="Close">✕</button>
+      <h2 style="margin-bottom:6px;">Element Families</h2>
+      <p style="color:var(--text-mid); font-size:.82rem; margin:0 0 4px;">Every element belongs to a family of elements with similar properties.</p>
+      <div id="guideList"></div>
+    </div>
+  </div>
+
+  <!-- ===== GENERIC CONFIRM MODAL ===== -->
+  <div class="modal-overlay hidden" id="confirmOverlay">
+    <div class="modal-card confirm-card" id="confirmCard" role="dialog" aria-modal="true">
+      <h2 id="confirmTitle">Are you sure?</h2>
+      <p id="confirmMessage">This cannot be undone.</p>
+      <div class="card-actions">
+        <button class="pill-btn ghost" id="confirmCancelBtn">Cancel</button>
+        <button class="pill-btn danger" id="confirmOkBtn">Yes, continue</button>
+      </div>
+    </div>
+  </div>
+
+  <footer class="copyright">© Data Horse</footer>
+
+  <!-- ===== BOTTOM NAV ===== -->
+  <nav class="bottom-nav" aria-label="Main navigation">
+    <button class="nav-btn active" data-view="table">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="10.5" y="3" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="18" y="3" width="3" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="3" y="10.5" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="10.5" y="10.5" width="6" height="6" rx="1.2" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span>Table</span>
+    </button>
+    <button class="nav-btn" data-view="cards">
+      <svg viewBox="0 0 24 24"><rect x="4" y="3" width="12" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="8" y="6" width="12" height="16" rx="2" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="1.8"/></svg>
+      <span>Cards</span>
+    </button>
+    <button class="nav-btn" data-view="quiz">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9.5 9.3c.3-1.6 3.6-2 4 .2.3 1.5-1.7 1.7-1.7 3.3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="11.9" cy="16.2" r="1" fill="currentColor"/></svg>
+      <span>Quiz</span>
+    </button>
+    <button class="nav-btn" data-view="progress">
+      <svg viewBox="0 0 24 24"><path d="M4 20V11M11 20V4M18 20v-7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <span>Progress</span>
+    </button>
+  </nav>
+</div>
+
+<script src="js/elements-data.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
