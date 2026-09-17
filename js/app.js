@@ -733,6 +733,7 @@
     if (sourceEl) sourceEl.classList.add("dragging");
 
     drag = { el: el, ghost: ghost, sourceTile: sourceEl, originCell: originCell, hover: null, moved: false };
+    document.body.classList.add("dragging-tile");
 
     document.addEventListener("pointermove", onPointerMove);
     document.addEventListener("pointerup", onPointerUp);
@@ -811,6 +812,7 @@
     drag.ghost.style.display = "none";
     var under = document.elementFromPoint(e.clientX, e.clientY);
     drag.ghost.remove();
+    document.body.classList.remove("dragging-tile");
 
     var slot = under && under.closest ? under.closest(".pt-cell.target") : null;
     var overTray = under && under.closest ? !!under.closest("#fillTray") : false;
@@ -940,14 +942,16 @@
       if (placedNum === undefined) {
         cell.classList.add("marked-missed");
         cell.style.background = catColor(el.category);
-        cell.innerHTML = '<span class="num">' + el.number + '</span><span class="sym">' + el.symbol + "</span>";
+        cell.innerHTML = '<span class="num">' + el.number + '</span><span class="sym">' + el.symbol + "</span>" +
+                         '<span class="mark-badge bad">✕</span>';
         cell.title = "Left blank — this spot was " + el.name + " (" + el.number + ")";
       } else {
         var placedEl = elById(placedNum);
         var right = placedNum === el.number;
         cell.classList.add("placed", right ? "marked-correct" : "marked-wrong");
         cell.style.background = catColor(placedEl.category);
-        cell.innerHTML = '<span class="num">' + placedEl.number + '</span><span class="sym">' + placedEl.symbol + "</span>";
+        cell.innerHTML = '<span class="num">' + placedEl.number + '</span><span class="sym">' + placedEl.symbol + "</span>" +
+                         '<span class="mark-badge ' + (right ? "ok" : "bad") + '">' + (right ? "✓" : "✕") + "</span>";
         cell.title = right
           ? "Correct — " + el.name + " (" + el.number + ")"
           : "You placed " + placedEl.name + " here; the answer was " + el.name + " (" + el.number + ")";
