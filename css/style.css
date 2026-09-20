@@ -309,19 +309,14 @@ h1,h2,h3{font-family:var(--font-head); margin:0;}
 
 .fill-play{ flex:1; display:flex; flex-direction:column; }
 
-/* Only the pieces you actually drag block touch panning, so the board itself
-   can still be scrolled with a finger or its scrollbars. */
+/* Only the pieces you actually pick up and drag opt out of the browser's
+   native touch handling. Everything else keeps touch-action:auto (the
+   default), so a finger can still scroll the board and two fingers can
+   still pinch-zoom it natively — exactly like every other view in the app. */
 .fill-grid, .fill-grid .pt-cell, .fill-tray{
   user-select:none; -webkit-user-select:none;
 }
-.fill-grid, .fill-grid .pt-cell.context, .fill-grid .pt-cell.target:not(.placed){
-  touch-action:pan-x pan-y;
-}
 .fill-grid .pt-cell.target.placed, .fill-tile{ touch-action:none; }
-.fill-tray{ touch-action:pan-y; }
-/* once a drag is under way nothing should pan */
-body.dragging-tile, body.dragging-tile .fill-grid,
-body.dragging-tile .fill-grid .pt-cell, body.dragging-tile .fill-tray{ touch-action:none; }
 
 /* Context cells (not part of the puzzle): the real, fully coloured tile */
 .fill-grid .pt-cell.context{ cursor:default; }
@@ -356,11 +351,10 @@ body.dragging-tile .fill-grid .pt-cell, body.dragging-tile .fill-tray{ touch-act
   width:17px; height:17px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
   font-family:var(--font-body); font-size:.66rem; font-weight:800; line-height:1;
-  color:#fff; border:1.5px solid var(--bg-deep); z-index:4; pointer-events:none;
-  box-shadow:0 1px 4px rgba(0,0,0,.5);
+  color:#fff; border:1px solid transparent; z-index:4; pointer-events:none;
 }
-.mark-badge.ok{ background:#2FA86E; }
-.mark-badge.bad{ background:#E24343; }
+.mark-badge.ok{ background:#2FA86E; border-color:#1E7A4C; box-shadow:0 1px 4px rgba(0,0,0,.35); }
+.mark-badge.bad{ background:#E24343; border-color:#A62E2E; box-shadow:0 1px 4px rgba(0,0,0,.35); }
 
 /* a slot left blank: correct answer shown faded, with a cross */
 .fill-grid .pt-cell.target.marked-missed{ opacity:.6; }
@@ -373,9 +367,9 @@ body.dragging-tile .fill-grid .pt-cell, body.dragging-tile .fill-tray{ touch-act
 .fill-tray.drop-hover{ border-color:var(--accent); background:rgba(79,216,235,.1); }
 .fill-tray-empty{ color:var(--text-dim); font-size:.78rem; font-weight:700; align-self:center; margin:auto; }
 .fill-tile{
-  width:42px; height:42px; border-radius:9px; position:relative;
+  width:var(--tile-size,42px); height:var(--tile-size,42px); border-radius:.22em; position:relative;
   display:flex; align-items:center; justify-content:center;
-  font-family:var(--font-head); font-weight:700; font-size:.82rem;
+  font-family:var(--font-head); font-weight:700; font-size:calc(var(--tile-size,42px) * .34);
   cursor:grab; touch-action:none; user-select:none; -webkit-user-select:none;
 }
 /* Blank puzzle tiles: no family colour, no atomic number — no shortcuts */
@@ -470,19 +464,29 @@ footer.copyright{ text-align:center; color:var(--text-dim); font-size:.68rem; pa
   .big-symbol{ font-size:6rem; }
 }
 
-/* ---- Cell sizing: bigger tiles so the atomic number fits ---- */
-:root{ --cell:36px; }
+/* ---- Cell sizing ----
+   Every label inside a tile is sized in em, relative to the tile's own
+   font-size, so the atomic number and symbol always scale together with
+   however big the tile itself is at the current breakpoint — no separate
+   pixel values to keep in sync. Zooming further is left entirely to the
+   browser's native pinch-to-zoom (see the viewport meta tag), which scales
+   this whole layout, text included, in one proportional step. */
+:root{ --cell:36px; --tile-size:42px; }
+.pt-cell{ font-size:15px; }
+.pt-cell .num{ font-size:.42em; }
+.pt-cell .sym{ font-size:.74em; margin-top:.2em; }
+.pt-cell.range{ font-size:.62em; }
+.pt-cell.range .sym{ font-size:.62em; margin-top:0; }
+.mark-badge{ font-size:.66rem; }
+
 @media (max-width:420px){
-  :root{ --cell:32px; }
-  .pt-cell .num{ font-size:.38rem; top:1px; left:2px; }
-  .pt-cell .sym{ font-size:.66rem; }
-  .fill-tile{ width:38px; height:38px; font-size:.76rem; }
+  :root{ --cell:32px; --tile-size:38px; }
 }
 
-/* ============ Landscape: give the Table room to breathe ============ */
-@media (orientation:landscape) and (min-width:560px){
-  .app-shell{ max-width:720px; }
-  .bottom-nav{ max-width:720px; }
+/* ============ Landscape / tablet: let the Table (and Quiz board) fill the screen ============ */
+@media (orientation:landscape) and (min-width:560px), (orientation:portrait) and (min-width:700px){
+  .app-shell{ max-width:760px; }
+  .bottom-nav{ max-width:760px; }
   .flip-card{ max-height:72vh; }
 
   body[data-view="table"] .app-shell,
@@ -498,13 +502,42 @@ footer.copyright{ text-align:center; color:var(--text-dim); font-size:.68rem; pa
     width:100%;
   }
   body[data-view="table"] .pt-cell,
-  body[data-view="quiz"] .fill-grid .pt-cell{ aspect-ratio:1; }
-  body[data-view="table"] .pt-cell .num,
-  body[data-view="quiz"] .fill-grid .pt-cell .num{ font-size:.5rem; top:3px; left:4px; }
-  body[data-view="table"] .pt-cell .sym,
-  body[data-view="quiz"] .fill-grid .pt-cell .sym{ font-size:.95rem; margin-top:4px; }
-  body[data-view="quiz"] .mark-badge{ width:19px; height:19px; font-size:.7rem; right:-5px; bottom:-5px; }
+  body[data-view="quiz"] .fill-grid .pt-cell{ aspect-ratio:1; font-size:22px; }
   body[data-view="table"] .view{ padding-left:28px; padding-right:28px; }
+}
+
+/* Wider portrait screens (tablets held upright): give Table, Quiz and Progress
+   more breathing room instead of staying phone-width. Cards keeps its flip
+   card at a comfortable reading width rather than stretching huge. */
+@media (orientation:portrait) and (min-width:700px){
+  .app-shell{ max-width:900px; }
+  .bottom-nav{ max-width:900px; }
+  .view{ padding-left:32px; padding-right:32px; }
+
+  /* NOTE: .view is a column flexbox, where `margin:auto` on a child cancels
+     the default stretch-to-fill behaviour — so every centred block below
+     also needs an explicit width:100% or it silently shrinks to content. */
+  body[data-view="cards"] .view{ padding-left:18px; padding-right:18px; align-items:center; }
+  body[data-view="cards"] .card-stage,
+  body[data-view="cards"] .filter-bar,
+  body[data-view="cards"] .progress-track,
+  body[data-view="cards"] .deck-position,
+  body[data-view="cards"] .card-actions{ max-width:520px; width:100%; }
+  body[data-view="cards"] .card-actions{ margin-top:10px; }
+
+  body[data-view="quiz"] .view{ align-items:center; }
+  body[data-view="quiz"] #quizIntro{ max-width:820px; width:100%; }
+  body[data-view="quiz"] #quizIntro .quiz-modes{ grid-template-columns:repeat(3,1fr); }
+  body[data-view="quiz"] #quizIntro .quiz-mode-card.featured{ grid-column:1 / -1; }
+  body[data-view="quiz"] #quizPlay,
+  body[data-view="quiz"] #fillSetup{ max-width:660px; width:100%; }
+
+  body[data-view="progress"] .view{ align-items:center; }
+  body[data-view="progress"] .progress-title,
+  body[data-view="progress"] .stat-cards,
+  body[data-view="progress"] .section-heading,
+  body[data-view="progress"] .category-bars,
+  body[data-view="progress"] .reset-btn{ max-width:780px; width:100%; }
 }
 
 @media (orientation:landscape) and (max-height:420px){
@@ -517,3 +550,4 @@ footer.copyright{ text-align:center; color:var(--text-dim); font-size:.68rem; pa
   .card-actions{ margin-top:6px; }
   .fill-tray{ max-height:26vh; }
 }
+

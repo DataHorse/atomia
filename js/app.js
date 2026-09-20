@@ -113,6 +113,7 @@
     if (name === "table") buildPeriodicTable();
     if (name === "progress") renderProgress();
     if (name === "quiz") { resetQuizToIntro(); renderBestScores(); }
+    cleanupAllDrags();
   }
   document.querySelectorAll(".nav-btn").forEach(function (btn) {
     btn.addEventListener("click", function () { showView(btn.dataset.view); });
@@ -396,6 +397,7 @@
     ["quizIntro", "quizPlay", "quizResult", "fillSetup", "fillPlay", "fillResult"].forEach(function (id) {
       document.getElementById(id).classList.toggle("hidden", id !== pane);
     });
+    cleanupAllDrags();
   }
   function resetQuizToIntro() {
     quizState = null;
@@ -700,11 +702,38 @@
       (label ? label + " · " : "") + n + " / " + fillState.targets.length + " placed";
   }
 
-  /* ---------- Pointer-based drag & drop (works with mouse, touch and pen) ---------- */
-  var drag = null;
+  /* ---------- Pointer-based drag & drop (works with mouse, touch and pen) ----------
+     Tracks every active drag in a Map keyed by pointerId, so multiple fingers
+     can each drag their own tile at once without one touch clobbering
+     another's state (which used to leave orphaned "ghost" tiles on screen).
+     A single set of document-level listeners handles every pointer; each
+     handler just looks up its own entry and ignores pointers it doesn't own. */
+  var activeDrags = new Map();
+
+  function cleanupAllDrags() {
+    activeDrags.forEach(function (d) {
+      try { d.ghost.remove(); } catch (err) {}
+      if (d.sourceTile) d.sourceTile.classList.remove("dragging");
+      if (d.hover) d.hover.classList.remove("drop-hover");
+    });
+    activeDrags.clear();
+    document.body.classList.remove("dragging-tile");
+    var tray = document.getElementById("fillTray");
+    if (tray) tray.classList.remove("drop-hover");
+  }
+
+  function sweepOrphanGhosts() {
+    document.querySelectorAll(".drag-ghost").forEach(function (g) {
+      var stillOwned = false;
+      activeDrags.forEach(function (d) { if (d.ghost === g) stillOwned = true; });
+      if (!stillOwned) g.remove();
+    });
+  }
 
   function onPointerDown(e) {
     if (!fillState || fillState.graded) return;
+    if (activeDrags.has(e.pointerId)) return;
+    sweepOrphanGhosts();
     var tile = e.target.closest ? e.target.closest(".fill-tile") : null;
     var placedCell = e.target.closest ? e.target.closest(".pt-cell.target.placed") : null;
     var sourceEl = null, originCell = null, elNum = null;
@@ -732,12 +761,13 @@
 
     if (sourceEl) sourceEl.classList.add("dragging");
 
-    drag = { el: el, ghost: ghost, sourceTile: sourceEl, originCell: originCell, hover: null, moved: false };
+    activeDrags.set(e.pointerId, { el: el, ghost: ghost, sourceTile: sourceEl, originCell: originCell, hover: null, moved: false, lastSeen: Date.now() });
     document.body.classList.add("dragging-tile");
 
-    document.addEventListener("pointermove", onPointerMove);
-    document.addEventListener("pointerup", onPointerUp);
-    document.addEventListener("pointercancel", onPointerUp);
+    var captureEl = sourceEl || originCell;
+    if (captureEl && captureEl.setPointerCapture) {
+      try { captureEl.setPointerCapture(e.pointerId); } catch (err) {}
+    }
   }
 
   // While dragging near an edge, scroll the board sideways and the page
@@ -745,8 +775,6 @@
   // has actually moved, and only right at an edge, so simply picking a tile up
   // never yanks the view.
   function autoScrollBoard(clientX, clientY) {
-    if (!drag || !drag.moved) return;
-
     var H_EDGE = 50, V_EDGE = 36, SPEED = 13;
 
     var scroller = document.querySelector("#fillPlay .table-scroll");
@@ -783,8 +811,10 @@
   }
 
   function onPointerMove(e) {
+    var drag = activeDrags.get(e.pointerId);
     if (!drag) return;
     drag.moved = true;
+    drag.lastSeen = Date.now();
     drag.ghost.style.left = (e.clientX - 21) + "px";
     drag.ghost.style.top = (e.clientY - 21) + "px";
     autoScrollBoard(e.clientX, e.clientY);
@@ -803,31 +833,37 @@
     else drag.hover = null;
   }
 
-  function onPointerUp(e) {
+  function finishDrag(pointerId, wasCancelled, clientX, clientY) {
+    var drag = activeDrags.get(pointerId);
     if (!drag) return;
-    document.removeEventListener("pointermove", onPointerMove);
-    document.removeEventListener("pointerup", onPointerUp);
-    document.removeEventListener("pointercancel", onPointerUp);
+    activeDrags.delete(pointerId);
+
+    var captureEl = drag.sourceTile || drag.originCell;
+    if (captureEl && captureEl.releasePointerCapture) {
+      try { captureEl.releasePointerCapture(pointerId); } catch (err) {}
+    }
 
     drag.ghost.style.display = "none";
-    var under = document.elementFromPoint(e.clientX, e.clientY);
+    var under = (!wasCancelled && typeof clientX === "number") ? document.elementFromPoint(clientX, clientY) : null;
     drag.ghost.remove();
-    document.body.classList.remove("dragging-tile");
+    if (activeDrags.size === 0) document.body.classList.remove("dragging-tile");
 
     var slot = under && under.closest ? under.closest(".pt-cell.target") : null;
     var overTray = under && under.closest ? !!under.closest("#fillTray") : false;
 
     if (drag.hover) drag.hover.classList.remove("drop-hover");
-    document.getElementById("fillTray").classList.remove("drop-hover");
     if (drag.sourceTile) drag.sourceTile.classList.remove("dragging");
+    var trayEl = document.getElementById("fillTray");
+    if (trayEl && ![...activeDrags.values()].some(function (d) { return d.originCell; })) {
+      trayEl.classList.remove("drop-hover");
+    }
 
     var el = drag.el;
     var origin = drag.originCell;
     var moved = drag.moved;
-    drag = null;
 
-    // A plain tap (no movement) should change nothing at all.
-    if (!moved) return;
+    // A cancelled gesture, or a plain tap with no movement, changes nothing.
+    if (wasCancelled || !moved) return;
 
     if (slot) {
       var slotId = slot.dataset.slot;
@@ -853,7 +889,38 @@
     updateFillStatus();
   }
 
+  function onPointerUp(e) { finishDrag(e.pointerId, false, e.clientX, e.clientY); }
+  function onPointerCancel(e) { finishDrag(e.pointerId, true); }
+
   document.getElementById("fillPlay").addEventListener("pointerdown", onPointerDown);
+  document.addEventListener("pointermove", onPointerMove);
+  document.addEventListener("pointerup", onPointerUp);
+  document.addEventListener("pointercancel", onPointerCancel);
+  window.addEventListener("pointerup", onPointerUp);
+  window.addEventListener("pointercancel", onPointerCancel);
+  // A finger dragged off the edge of the screen can leave the document
+  // without ever firing pointerup/pointercancel on some browsers.
+  document.addEventListener("pointerleave", function (e) { finishDrag(e.pointerId, true); });
+  // Last-resort watchdog: if a pointer stops sending move events entirely
+  // (frozen mid-gesture) for a couple of seconds, treat it as abandoned
+  // rather than leaving its ghost on screen forever.
+  setInterval(function () {
+    if (!activeDrags.size) return;
+    var now = Date.now();
+    // snapshot the ids first: finishDrag mutates the map we'd be iterating
+    var stale = [];
+    activeDrags.forEach(function (d, id) {
+      if (now - d.lastSeen > 2500) stale.push(id);
+    });
+    stale.forEach(function (id) { finishDrag(id, true); });
+  }, 500);
+  // Defensive net: if focus leaves the app entirely mid-drag (app switch,
+  // notification, etc.) with no pointerup/pointercancel ever arriving,
+  // don't leave a ghost tile stranded on screen.
+  document.addEventListener("visibilitychange", function () {
+    if (document.hidden) cleanupAllDrags();
+  });
+  window.addEventListener("blur", cleanupAllDrags);
 
   document.getElementById("fillClearBtn").addEventListener("click", function () {
     if (!fillState) return;
@@ -909,8 +976,8 @@
       (wrong ? '<span class="review-chip bad">✕ ' + wrong + " misplaced</span>" : "") +
       (missed ? '<span class="review-chip bad">— ' + missed + " missed</span>" : "");
 
-    buildReviewGrid();
     showQuizPane("fillResult");
+    buildReviewGrid();
     if (correct === total) celebrate();
   }
 
